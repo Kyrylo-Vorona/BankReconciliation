@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\BankReconciliation.DAL\BankReconciliation.DAL.csproj" />
+      <ProjectReference Include="..\BankReconciliation.Domain\BankReconciliation.Domain.csproj" />
+    </ItemGroup>
+
+</Project>
