@@ -10,4 +10,5 @@ public class BankTransaction
     
     public bool IsReconciled { get; set; } = false;
     public Guid? MatchedLedgerTransactionId { get; set; }
+    public Guid? ReconciliationResultId { get; set; }
 }
