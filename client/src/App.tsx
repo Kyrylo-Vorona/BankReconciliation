@@ -1,8 +1,16 @@
-import { useState, ChangeEvent, DragEvent } from 'react';
+import { useState, ChangeEvent, DragEvent, useEffect } from 'react';
 import { Api } from './api/Api';
 import type { BankTransactionDto, LedgerTransactionDto } from './api/Api';
 
 type ReconciliationResult = Awaited<ReturnType<Api<unknown>['api']['reconciliationReconcileCreate']>>;
+
+type HistoryItem = {
+  id: string;
+  createdAt: string;
+  totalBankBalance: number;
+  totalLedgerBalance: number;
+  difference: number;
+};
 
 const api = new Api({ baseUrl: 'http://localhost:5263' });
 
@@ -12,7 +20,26 @@ export default function App() {
 
   const [result, setResult] = useState<ReconciliationResult | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  
+
+  const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string>('');
+
+  const fetchHistory = async () => {
+    try {
+      const data = await api.api.reconciliationHistoryList({ format: 'json' } as any);
+
+      console.log('History fetched successfully:', data);
+      setHistoryList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch history:', error);
+      setHistoryList([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
@@ -30,7 +57,7 @@ export default function App() {
       setLedgerFile(e.dataTransfer.files[0]);
     }
   };
-  
+
   const parseBankCsv = async (file: File): Promise<BankTransactionDto[]> => {
     const text = await file.text();
     const lines = text.split(/\r?\n/).slice(1).filter(line => line.trim());
@@ -88,6 +115,10 @@ export default function App() {
       });
 
       setResult(data);
+      setSelectedHistoryId('');
+      setBankFile(null);
+      setLedgerFile(null);
+      fetchHistory();
     } catch (error) {
       console.error('Reconciliation error:', error);
       alert('Could not complete the reconciliation');
@@ -96,9 +127,51 @@ export default function App() {
     }
   };
 
+  const handleSelectHistory = async (e: ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedHistoryId(id);
+
+    if (!id) {
+      setResult(null);
+      return;
+    }
+
+    setBankFile(null);
+    setLedgerFile(null);
+
+    setLoading(true);
+    try {
+      const data = await api.api.reconciliationHistoryDetail(id, { format: 'json' } as any);
+      setResult(data);
+    } catch (error) {
+      console.error('Error fetching reconciliation details:', error);
+      alert('Failed to load selected reconciliation details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
       <div style={{ padding: '30px', fontFamily: 'Arial, sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
         <h2 style={{ textAlign: 'center' }}>Reconciliation</h2>
+        <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+          <label htmlFor="history-select" style={{ marginRight: '10px', fontWeight: 'bold' }}>
+            Load past reconciliation:
+          </label>
+          <select
+              id="history-select"
+              value={selectedHistoryId}
+              onChange={handleSelectHistory}
+              style={{ padding: '8px 12px', borderRadius: '4px', fontSize: '14px' }}
+          >
+            <option value=""> New Reconciliation / Select from history </option>
+            {historyList.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.createdAt ? new Date(item.createdAt).toLocaleString() : item.id} | Diff: {item.difference ?? 0}
+                </option>
+            ))}
+          </select>
+        </div>
 
         <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
           <div
@@ -114,7 +187,7 @@ export default function App() {
             />
             {bankFile && <p style={{ color: 'green', marginTop: '10px', fontWeight: 'bold' }}>✓ {bankFile.name}</p>}
           </div>
-          
+
           <div
               onDragOver={handleDragOver}
               onDrop={handleDropLedger}
@@ -132,13 +205,12 @@ export default function App() {
 
         <button
             onClick={handleReconcile}
-            disabled={loading || !bankFile || !ledgerFile}
+            disabled={loading}
             style={{ width: '100%', padding: '12px', fontSize: '16px', background: '#28A745', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
         >
           {loading ? 'Processing...' : 'Start reconciliation'}
         </button>
 
-        {/* Вывод результатов */}
         {result && (
             <div style={{ marginTop: '40px' }}>
               <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
@@ -151,17 +223,21 @@ export default function App() {
               <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
                 <thead>
                 <tr style={{ background: '#f1f3f5', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>
-                  <th style={{ padding: '12px' }}>Status</th>
-                  <th style={{ padding: '12px' }}>Description / Ref</th>
+                  <th style={{ padding: '12px 12px 12px 30px' }}>Status</th>
+                  <th style={{ padding: '12px 12px 12px 25px' }}>Date</th>
+                  <th style={{ padding: '12px 12px 12px 70px' }}>Description / Ref</th>
                   <th style={{ padding: '12px' }}>Bank Amount</th>
                   <th style={{ padding: '12px' }}>Ledger Amount</th>
                 </tr>
                 </thead>
                 <tbody>
-                {result.matchedBankTransactions?.map((tx) => (
+                {(result.matchedBankTransactions || []).map((tx) => (
                     <tr key={tx.id} style={{ borderBottom: '1px solid #eee', background: '#e6f4ea' }}>
                       <td style={{ padding: '12px' }}>
                         <span style={{ background: '#ceead6', color: '#0d652d', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>Match</span>
+                      </td>
+                      <td style={{ padding: '12px', color: '#555', fontSize: '14px' }}>
+                        {new Date(tx.date).toLocaleDateString()}
                       </td>
                       <td style={{ padding: '12px' }}>{tx.description} ({tx.referenceNumber})</td>
                       <td style={{ padding: '12px' }}>{tx.amount}</td>
@@ -169,10 +245,13 @@ export default function App() {
                     </tr>
                 ))}
 
-                {result.unmatchedBankTransactions?.map((tx) => (
+                {(result.unmatchedBankTransactions || []).map((tx) => (
                     <tr key={tx.id} style={{ borderBottom: '1px solid #eee', background: '#fce8e6' }}>
                       <td style={{ padding: '12px' }}>
                         <span style={{ background: '#fad2cf', color: '#c5221f', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>Only in Bank</span>
+                      </td>
+                      <td style={{ padding: '12px', color: '#555', fontSize: '14px' }}>
+                        {new Date(tx.date).toLocaleDateString()}
                       </td>
                       <td style={{ padding: '12px' }}>{tx.description} ({tx.referenceNumber})</td>
                       <td style={{ padding: '12px' }}>{tx.amount}</td>
@@ -180,10 +259,13 @@ export default function App() {
                     </tr>
                 ))}
 
-                {result.unmatchedLedgerTransactions?.map((tx) => (
+                {(result.unmatchedLedgerTransactions || []).map((tx) => (
                     <tr key={tx.id} style={{ borderBottom: '1px solid #eee', background: '#fce8e6' }}>
                       <td style={{ padding: '12px' }}>
                         <span style={{ background: '#fad2cf', color: '#c5221f', padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>Only in Ledger</span>
+                      </td>
+                      <td style={{ padding: '12px', color: '#555', fontSize: '14px' }}>
+                        {new Date(tx.date).toLocaleDateString()}
                       </td>
                       <td style={{ padding: '12px' }}>{tx.description} ({tx.accountCode})</td>
                       <td style={{ padding: '12px' }}>-</td>

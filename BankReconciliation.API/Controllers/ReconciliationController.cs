@@ -59,8 +59,6 @@ public class ReconciliationController : ControllerBase
     public async Task<IActionResult> GetHistory()
     {
         var history = await _dbContext.ReconciliationResults
-            .Include(r => r.BankTransactions)
-            .Include(r => r.LedgerTransactions)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
