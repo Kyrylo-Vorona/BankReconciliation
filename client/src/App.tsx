@@ -151,6 +151,80 @@ export default function App() {
     }
   };
 
+  const downloadExportReport = (result: ReconciliationResult) => {
+    if (!result) return;
+
+    const rows: (string | number)[][] = [];
+
+    const formatCsvRow = (arr: (string | number)[]): string => {
+      return arr
+          .map((val) => {
+            const str = val === null || val === undefined ? '' : String(val);
+            return `"${str.replace(/"/g, '""')}"`;
+          })
+          .join(',');
+    };
+    
+    rows.push(['Reconciliation Report', '']);
+    rows.push(['Reconciliation Date', result.createdAt ? new Date(result.createdAt).toLocaleString() : 'N/A']);
+    rows.push(['Report Generated At', new Date().toLocaleString()]);
+    rows.push([]);
+    rows.push(['Total Bank Balance', result.totalBankBalance ?? 0]);
+    rows.push(['Total Ledger Balance', result.totalLedgerBalance ?? 0]);
+    rows.push(['Difference', result.difference ?? 0]);
+    rows.push([]);
+    rows.push(['Status', 'Date', 'Description / Ref', 'Bank Amount', 'Ledger Amount']);
+
+    const matchedBank = result.matchedBankTransactions || [];
+    const matchedLedger = result.matchedLedgerTransactions || [];
+    const ledgerMap = new Map(matchedLedger.map((item) => [item.id, item]));
+    
+    matchedBank.forEach((bankTx) => {
+      const ledgerTx = bankTx.matchedLedgerTransactionId
+          ? ledgerMap.get(bankTx.matchedLedgerTransactionId)
+          : matchedLedger.find(l => l.amount === bankTx.amount);
+
+      rows.push([
+        'Matched',
+        bankTx.date ? new Date(bankTx.date).toLocaleDateString() : '',
+        bankTx.description || bankTx.referenceNumber || '',
+        bankTx.amount ?? 0,
+        ledgerTx?.amount ?? bankTx.amount ?? 0,
+      ]);
+    });
+    
+    (result.unmatchedBankTransactions || []).forEach((bankTx) => {
+      rows.push([
+        'Unmatched (Bank Only)',
+        bankTx.date ? new Date(bankTx.date).toLocaleDateString() : '',
+        bankTx.description || bankTx.referenceNumber || '',
+        bankTx.amount ?? 0,
+        '-',
+      ]);
+    });
+    
+    (result.unmatchedLedgerTransactions || []).forEach((ledgerTx) => {
+      rows.push([
+        'Unmatched (Ledger Only)',
+        ledgerTx.date ? new Date(ledgerTx.date).toLocaleDateString() : '',
+        ledgerTx.description || ledgerTx.accountCode || '',
+        '-',
+        ledgerTx.amount ?? 0,
+      ]);
+    });
+    
+    const csvContent = 'sep=,\n' + rows.map(formatCsvRow).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `reconciliation_report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
       <div style={{ padding: '30px', fontFamily: 'Arial, sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
         <h2 style={{ textAlign: 'center' }}>Reconciliation</h2>
@@ -213,10 +287,20 @@ export default function App() {
 
         {result && (
             <div style={{ marginTop: '40px' }}>
-              <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-                <div style={{ padding: '15px', background: '#e9ecef', borderRadius: '6px', flex: 1 }}>Total Bank: <strong>{result.totalBankBalance}</strong></div>
-                <div style={{ padding: '15px', background: '#e9ecef', borderRadius: '6px', flex: 1 }}>Total Ledger: <strong>{result.totalLedgerBalance}</strong></div>
-                <div style={{ padding: '15px', background: result.difference !== 0 ? '#f8d7da' : '#d4edda', borderRadius: '6px', flex: 1 }}>Difference: <strong>{result.difference}</strong></div>
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'stretch' }}>
+                <div style={{ padding: '15px', background: '#e9ecef', borderRadius: '6px', flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  Total Bank: <strong>{result.totalBankBalance}</strong>
+                </div>
+                <div style={{ padding: '15px', background: '#e9ecef', borderRadius: '6px', flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  Total Ledger: <strong>{result.totalLedgerBalance}</strong>
+                </div>
+                <div style={{ padding: '15px', background: result.difference !== 0 ? '#f8d7da' : '#d4edda', borderRadius: '6px', flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  Difference: <strong>{result.difference}</strong>
+                </div>
+                <button
+                    onClick={() => downloadExportReport(result)}
+                    style={{flex: 1, padding: '15px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Download Export Report (CSV)
+                </button>
               </div>
 
               <h3>Results</h3>
