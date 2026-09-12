@@ -222,12 +222,12 @@ export default function App() {
     const formatCsvRow = (arr: (string | number)[]): string => {
       return arr
           .map((val) => {
-            const str = val === null || val === undefined ? '' : String(val);
+            const str = val === null || val === undefined ? '' : String(val).replace('.', ',');
             return `"${str.replace(/"/g, '""')}"`;
           })
-          .join(',');
+          .join(';');
     };
-    
+
     rows.push(['Reconciliation Report', '']);
     rows.push(['Reconciliation Date', result.createdAt ? new Date(result.createdAt).toLocaleString() : 'N/A']);
     rows.push(['Report Generated At', new Date().toLocaleString()]);
@@ -241,7 +241,7 @@ export default function App() {
     const matchedBank = result.matchedBankTransactions || [];
     const matchedLedger = result.matchedLedgerTransactions || [];
     const ledgerMap = new Map(matchedLedger.map((item) => [item.id, item]));
-    
+
     matchedBank.forEach((bankTx) => {
       const ledgerTx = bankTx.matchedLedgerTransactionId
           ? ledgerMap.get(bankTx.matchedLedgerTransactionId)
@@ -255,7 +255,7 @@ export default function App() {
         ledgerTx?.amount ?? bankTx.amount ?? 0,
       ]);
     });
-    
+
     (result.unmatchedBankTransactions || []).forEach((bankTx) => {
       rows.push([
         'Unmatched (Bank Only)',
@@ -265,7 +265,7 @@ export default function App() {
         '-',
       ]);
     });
-    
+
     (result.unmatchedLedgerTransactions || []).forEach((ledgerTx) => {
       rows.push([
         'Unmatched (Ledger Only)',
@@ -275,8 +275,8 @@ export default function App() {
         ledgerTx.amount ?? 0,
       ]);
     });
-    
-    const csvContent = 'sep=,\n' + rows.map(formatCsvRow).join('\n');
+
+    const csvContent = 'sep=;\n' + rows.map(formatCsvRow).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
