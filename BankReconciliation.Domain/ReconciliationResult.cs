@@ -11,6 +11,7 @@ public class ReconciliationResult
     
     public List<BankTransaction> BankTransactions { get; set; } = new();
     public List<LedgerTransaction> LedgerTransactions { get; set; } = new();
+    public List<AdjustmentEntry> Adjustments { get; set; } = new();
     
     public List<BankTransaction> MatchedBankTransactions => 
         BankTransactions.Where(t => t.IsReconciled).ToList();

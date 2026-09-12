@@ -21,3 +21,10 @@ public class LedgerTransactionDto
     public string Description { get; set; } = string.Empty;
     public string AccountCode { get; set; } = string.Empty;
 }
+
+public class CreateAdjustmentDto
+{
+    public string AccountCode { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string Description { get; set; } = string.Empty;
+}

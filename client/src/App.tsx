@@ -24,6 +24,13 @@ export default function App() {
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string>('');
 
+  const [showAdjustmentsForm, setShowAdjustmentsForm] = useState<boolean>(false);
+  
+  const [adjustments, setAdjustments] = useState<AdjustmentEntry[]>([]);
+  const [adjAccount, setAdjAccount] = useState('');
+  const [adjAmount, setAdjAmount] = useState('');
+  const [adjDescription, setAdjDescription] = useState('');
+
   const fetchHistory = async () => {
     try {
       const data = await api.api.reconciliationHistoryList({ format: 'json' } as any);
@@ -39,6 +46,33 @@ export default function App() {
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  useEffect(() => {
+    if (result?.adjustments) {
+      setAdjustments(result.adjustments);
+    } else {
+      setAdjustments([]);
+    }
+    setShowAdjustmentsForm(false);
+  }, [result]);
+
+  const handleAddAdjustmentRow = () => {
+    if (!adjAccount || !adjAmount) {
+      alert('Please specify Account Code and Amount');
+      return;
+    }
+    setAdjustments([
+      ...adjustments,
+      {
+        accountCode: adjAccount,
+        amount: parseFloat(adjAmount) || 0,
+        description: adjDescription,
+      },
+    ]);
+    setAdjAccount('');
+    setAdjAmount('');
+    setAdjDescription('');
+  };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -57,23 +91,52 @@ export default function App() {
       setLedgerFile(e.dataTransfer.files[0]);
     }
   };
+  
+  const parseAmount = (rawAmount: string | undefined): number => {
+    if (!rawAmount) return 0;
+
+    let cleaned = rawAmount.trim();
+    
+    cleaned = cleaned.replace(/["'\s]/g, '');
+    
+    if (cleaned.includes('.') && cleaned.includes(',')) {
+      if (cleaned.lastIndexOf('.') > cleaned.lastIndexOf(',')) {
+        cleaned = cleaned.replace(/,/g, '');
+      } else {
+        cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+      }
+    } else {
+      cleaned = cleaned.replace(',', '.');
+    }
+
+    const result = parseFloat(cleaned);
+    return isNaN(result) ? 0 : result;
+  };
+  
+  const splitCsvLine = (line: string): string[] => {
+    const semicolonCount = (line.match(/;/g) || []).length;
+    const commaCount = (line.match(/,/g) || []).length;
+
+    const delimiter = semicolonCount > commaCount ? ';' : ',';
+    return line.split(delimiter);
+  };
 
   const parseBankCsv = async (file: File): Promise<BankTransactionDto[]> => {
     const text = await file.text();
     const lines = text.split(/\r?\n/).slice(1).filter(line => line.trim());
 
     return lines.map(line => {
-      const [rawDate, rawAmount, description, refNum] = line.split(',');
+      const columns = splitCsvLine(line);
+      const [rawDate, rawAmount, description, refNum] = columns;
 
       const parsedDate = new Date(rawDate?.trim());
       const validDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-      const parsedAmount = parseFloat(rawAmount?.trim()) || 0;
 
       return {
         date: validDate.toISOString(),
-        amount: parsedAmount,
-        description: description?.trim() || 'No description',
-        referenceNumber: refNum?.trim() || 'REF-UNKNOWN'
+        amount: parseAmount(rawAmount),
+        description: description?.trim().replace(/^"|"$/g, '') || 'No description',
+        referenceNumber: refNum?.trim().replace(/^"|"$/g, '') || 'REF-UNKNOWN'
       };
     });
   };
@@ -83,17 +146,17 @@ export default function App() {
     const lines = text.split(/\r?\n/).slice(1).filter(line => line.trim());
 
     return lines.map(line => {
-      const [rawDate, rawAmount, description, accCode] = line.split(',');
+      const columns = splitCsvLine(line);
+      const [rawDate, rawAmount, description, accCode] = columns;
 
       const parsedDate = new Date(rawDate?.trim());
       const validDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-      const parsedAmount = parseFloat(rawAmount?.trim()) || 0;
 
       return {
         date: validDate.toISOString(),
-        amount: parsedAmount,
-        description: description?.trim() || 'No description',
-        accountCode: accCode?.trim() || 'ACC-UNKNOWN'
+        amount: parseAmount(rawAmount),
+        description: description?.trim().replace(/^"|"$/g, '') || 'No description',
+        accountCode: accCode?.trim().replace(/^"|"$/g, '') || 'ACC-UNKNOWN'
       };
     });
   };
@@ -223,6 +286,51 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleSaveAndDownloadCsv = async () => {
+    const targetId = selectedHistoryId || result?.id;
+    if (!targetId) return;
+
+    try {
+      const response = await fetch(`http://localhost:5263/api/reconciliation/history/${targetId}/adjustments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adjustments),
+      });
+
+      if (!response.ok) {
+        alert('Failed to save adjustments');
+        return;
+      }
+      
+      const rows = [
+        ['Date', 'Account Code', 'Amount', 'Description'],
+        ...adjustments.map(adj => [
+          new Date().toLocaleString(),
+          adj.accountCode,
+          adj.amount,
+          adj.description
+        ])
+      ];
+
+      const csvContent = 'sep=,\n' + rows.map(e => e.map(val => `"${val}"`).join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `adjustments_report_${targetId.slice(0, 8)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      fetchHistory();
+
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Could not complete operation');
+    }
   };
 
   return (
@@ -358,6 +466,98 @@ export default function App() {
                 ))}
                 </tbody>
               </table>
+              {/* Кнопка открытия формы в конце таблицы */}
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <button
+                    onClick={() => setShowAdjustmentsForm(!showAdjustmentsForm)}
+                    style={{
+                      padding: '12px 24px',
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      backgroundColor: '#17a2b8',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                >
+                  {showAdjustmentsForm ? 'Hide Adjusting Entries Form' : 'Make adjusting entries'}
+                </button>
+              </div>
+              {showAdjustmentsForm && (
+                  <div style={{ marginTop: '25px', padding: '20px', border: '1px solid #007bff', borderRadius: '8px', background: '#f8f9fa' }}>
+                    <h3 style={{ marginTop: 0 }}>Create Adjusting Entries</h3>
+
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                      <input
+                          type="text"
+                          placeholder="Account Code (e.g. 91.02)"
+                          value={adjAccount}
+                          onChange={(e) => setAdjAccount(e.target.value)}
+                          style={{ padding: '8px', flex: 1, borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                      <input
+                          type="number"
+                          placeholder="Amount"
+                          value={adjAmount}
+                          onChange={(e) => setAdjAmount(e.target.value)}
+                          style={{ padding: '8px', flex: 1, borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                      <input
+                          type="text"
+                          placeholder="Description"
+                          value={adjDescription}
+                          onChange={(e) => setAdjDescription(e.target.value)}
+                          style={{ padding: '8px', flex: 2, borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                      <button
+                          onClick={handleAddAdjustmentRow}
+                          style={{ padding: '8px 16px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    
+                    {adjustments.length > 0 && (
+                        <table style={{ width: '100%', marginBottom: '15px', borderCollapse: 'collapse', background: '#fff' }}>
+                          <thead>
+                          <tr style={{ background: '#e9ecef', textAlign: 'left' }}>
+                            <th style={{ padding: '8px' }}>Account Code</th>
+                            <th style={{ padding: '8px' }}>Amount</th>
+                            <th style={{ padding: '8px' }}>Description</th>
+                          </tr>
+                          </thead>
+                          <tbody>
+                          {adjustments.map((adj, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #dee2e6' }}>
+                                <td style={{ padding: '8px' }}>{adj.accountCode}</td>
+                                <td style={{ padding: '8px' }}>{adj.amount}</td>
+                                <td style={{ padding: '8px' }}>{adj.description}</td>
+                              </tr>
+                          ))}
+                          </tbody>
+                        </table>
+                    )}
+
+                    <button
+                        onClick={handleSaveAndDownloadCsv}
+                        disabled={adjustments.length === 0}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          background: adjustments.length === 0 ? '#6c757d' : '#007bff',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '15px',
+                          fontWeight: 'bold',
+                          cursor: adjustments.length === 0 ? 'not-allowed' : 'pointer',
+                        }}
+                    >
+                      Save Entries & Download CSV
+                    </button>
+                  </div>
+              )}
             </div>
         )}
       </div>

@@ -54,6 +54,34 @@ public class ReconciliationController : ControllerBase
         
         return Ok(result);
     }
+    
+    [HttpPost("history/{id:guid}/adjustments")]
+    public async Task<IActionResult> AddAdjustments(Guid id, [FromBody] List<CreateAdjustmentDto> dtos)
+    {
+        var reconciliation = await _dbContext.ReconciliationResults
+            .Include(r => r.Adjustments)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (reconciliation == null)
+        {
+            return NotFound("Reconciliation record not found");
+        }
+
+        foreach (var dto in dtos)
+        {
+            reconciliation.Adjustments.Add(new AdjustmentEntry
+            {
+                ReconciliationResultId = id,
+                AccountCode = dto.AccountCode,
+                Amount = dto.Amount,
+                Description = dto.Description,
+                Date = DateTime.UtcNow
+            });
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return Ok(reconciliation.Adjustments);
+    }
 
     [HttpGet("history")]
     public async Task<IActionResult> GetHistory()
@@ -71,6 +99,7 @@ public class ReconciliationController : ControllerBase
         var result = await _dbContext.ReconciliationResults
             .Include(r => r.BankTransactions)
             .Include(r => r.LedgerTransactions)
+            .Include(r => r.Adjustments)
             .FirstOrDefaultAsync(r => r.Id == id);
 
         if (result == null)
