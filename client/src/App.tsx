@@ -222,15 +222,21 @@ export default function App() {
     const formatCsvRow = (arr: (string | number)[]): string => {
       return arr
           .map((val) => {
-            const str = val === null || val === undefined ? '' : String(val).replace('.', ',');
+            if (val === null || val === undefined) return '""';
+
+            let str = String(val);
+            if (typeof val === 'number') {
+              str = str.replace('.', ',');
+            }
+
             return `"${str.replace(/"/g, '""')}"`;
           })
           .join(';');
     };
 
     rows.push(['Reconciliation Report', '']);
-    rows.push(['Reconciliation Date', result.createdAt ? new Date(result.createdAt).toLocaleString() : 'N/A']);
-    rows.push(['Report Generated At', new Date().toLocaleString()]);
+    rows.push(['Reconciliation Date', result.createdAt ? new Date(result.createdAt).toLocaleString().replace(',', '') : 'N/A']);
+    rows.push(['Report Generated At', new Date().toLocaleString().replace(',', '')]);
     rows.push([]);
     rows.push(['Total Bank Balance', result.totalBankBalance ?? 0]);
     rows.push(['Total Ledger Balance', result.totalLedgerBalance ?? 0]);

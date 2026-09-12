@@ -55,34 +55,6 @@ public class ReconciliationController : ControllerBase
         return Ok(result);
     }
     
-    [HttpPost("history/{id:guid}/adjustments")]
-    public async Task<IActionResult> AddAdjustments(Guid id, [FromBody] List<CreateAdjustmentDto> dtos)
-    {
-        var reconciliation = await _dbContext.ReconciliationResults
-            .Include(r => r.Adjustments)
-            .FirstOrDefaultAsync(r => r.Id == id);
-
-        if (reconciliation == null)
-        {
-            return NotFound("Reconciliation record not found");
-        }
-
-        foreach (var dto in dtos)
-        {
-            reconciliation.Adjustments.Add(new AdjustmentEntry
-            {
-                ReconciliationResultId = id,
-                AccountCode = dto.AccountCode,
-                Amount = dto.Amount,
-                Description = dto.Description,
-                Date = DateTime.UtcNow
-            });
-        }
-
-        await _dbContext.SaveChangesAsync();
-        return Ok(reconciliation.Adjustments);
-    }
-
     [HttpGet("history")]
     public async Task<IActionResult> GetHistory()
     {
@@ -91,6 +63,33 @@ public class ReconciliationController : ControllerBase
             .ToListAsync();
 
         return Ok(history);
+    }
+    
+    [HttpPost("history/{id:guid}/adjustments")]
+    public async Task<IActionResult> AddAdjustments(Guid id, [FromBody] List<CreateAdjustmentDto> dtos)
+    {
+        var reconciliationExists = await _dbContext.ReconciliationResults
+            .AnyAsync(r => r.Id == id);
+
+        if (!reconciliationExists)
+        {
+            return NotFound("Reconciliation record not found");
+        }
+        
+        var newAdjustments = dtos.Select(dto => new AdjustmentEntry
+        {
+            Id = Guid.NewGuid(),
+            ReconciliationResultId = id,
+            AccountCode = dto.AccountCode,
+            Amount = dto.Amount,
+            Description = dto.Description,
+            Date = DateTime.UtcNow
+        }).ToList();
+        
+        await _dbContext.AdjustmentEntries.AddRangeAsync(newAdjustments);
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(newAdjustments);
     }
 
     [HttpGet("history/{id:guid}")]
