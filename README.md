@@ -9,7 +9,6 @@ At the end of the month, the Statement of Financial Position of the bank and the
 * Book/Bank errors
 
 This program allows to instantly find discrepancies in transactions by uploading Bank's and Ledger's CSV files to complete Bank Reconciliation.
-Parses only CSV files in American format (decimals separated with "." and columns separated with ",")
 
 ## Tech Stack
 * **Backend:** .NET 10 Web API

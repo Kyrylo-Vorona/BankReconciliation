@@ -91,6 +91,22 @@ public class ReconciliationController : ControllerBase
 
         return Ok(newAdjustments);
     }
+    
+    [HttpDelete("adjustments/{id:guid}")]
+    public async Task<IActionResult> DeleteAdjustment(Guid id)
+    {
+        var adjustment = await _dbContext.AdjustmentEntries.FindAsync(id);
+    
+        if (adjustment == null)
+        {
+            return NotFound("Adjustment not found");
+        }
+
+        _dbContext.AdjustmentEntries.Remove(adjustment);
+        await _dbContext.SaveChangesAsync();
+
+        return NoContent();
+    }
 
     [HttpGet("history/{id:guid}")]
     public async Task<IActionResult> GetHistoryById(Guid id)

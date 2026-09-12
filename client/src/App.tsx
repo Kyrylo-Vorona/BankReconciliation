@@ -331,12 +331,102 @@ export default function App() {
       link.click();
       document.body.removeChild(link);
       
+      const historyRes = await fetch(`http://localhost:5263/api/reconciliation/history/${targetId}`);
+      if (historyRes.ok) {
+        const updatedResult = await historyRes.json();
+        setResult(updatedResult); 
+      }
+      
       fetchHistory();
+      setAdjustments([]);
 
     } catch (error) {
       console.error('Error:', error);
       alert('Could not complete operation');
     }
+  };
+
+  const handleDeleteAdjustment = async (id?: string, index?: number) => {
+    if (id) {
+      try {
+        const response = await fetch(`http://localhost:5263/api/Reconciliation/adjustments/${id}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          alert('Failed to delete from database');
+          return;
+        }
+      } catch (error) {
+        console.error('Error deleting adjustment:', error);
+        return;
+      }
+    }
+    setAdjustments(prev => prev.filter((item, idx) => item.id !== id && idx !== index));
+  };
+
+  const downloadCorrectedReportCsv = () => {
+    if (!result) return;
+
+    const rows: (string | number)[][] = [];
+
+    const formatCsvRow = (arr: (string | number)[]): string => {
+      return arr
+          .map((val) => {
+            if (val === null || val === undefined) return '""';
+            let str = String(val);
+            if (typeof val === 'number') {
+              str = str.replace('.', ',');
+            }
+            return `"${str.replace(/"/g, '""')}"`;
+          })
+          .join(';');
+    };
+
+    rows.push(['Corrected Reconciliation Report', '']);
+    rows.push(['Reconciliation Date', result.createdAt ? new Date(result.createdAt).toLocaleString().replace(',', '') : 'N/A']);
+    rows.push([]);
+
+    const totalAdjustments = adjustments.reduce((sum, item) => sum + item.amount, 0);
+    const correctedDifference = (result.difference ?? 0) - totalAdjustments;
+
+    rows.push(['Total Bank Balance', result.totalBankBalance ?? 0]);
+    rows.push(['Total Ledger Balance', result.totalLedgerBalance ?? 0]);
+    rows.push(['Adjustments Total', totalAdjustments]);
+    rows.push(['Corrected Difference', correctedDifference]);
+    rows.push([]);
+
+    rows.push(['Status', 'Date', 'Description / Ref', 'Bank Amount', 'Ledger Amount']);
+
+    (result.matchedBankTransactions || []).forEach((bankTx) => {
+      rows.push(['Matched', bankTx.date ? new Date(bankTx.date).toLocaleDateString() : '', bankTx.description || '', bankTx.amount ?? 0, bankTx.amount ?? 0]);
+    });
+
+    (result.unmatchedBankTransactions || []).forEach((bankTx) => {
+      rows.push(['Unmatched (Bank Only)', bankTx.date ? new Date(bankTx.date).toLocaleDateString() : '', bankTx.description || '', bankTx.amount ?? 0, '-']);
+    });
+
+    (result.unmatchedLedgerTransactions || []).forEach((ledgerTx) => {
+      rows.push(['Unmatched (Ledger Only)', ledgerTx.date ? new Date(ledgerTx.date).toLocaleDateString() : '', ledgerTx.description || '', '-', ledgerTx.amount ?? 0]);
+    });
+
+    rows.push([]);
+    rows.push(['--- APPLIED ADJUSTMENTS ---', '', '', '']);
+    rows.push(['Account Code', 'Date', 'Description', 'Amount']);
+
+    adjustments.forEach(adj => {
+      rows.push([adj.accountCode, new Date().toLocaleDateString(), adj.description, adj.amount]);
+    });
+
+    const csvContent = '\uFEFFsep=;\n' + rows.map(formatCsvRow).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `corrected_reconciliation_report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -523,7 +613,7 @@ export default function App() {
                         + Add
                       </button>
                     </div>
-                    
+
                     {adjustments.length > 0 && (
                         <table style={{ width: '100%', marginBottom: '15px', borderCollapse: 'collapse', background: '#fff' }}>
                           <thead>
@@ -531,37 +621,65 @@ export default function App() {
                             <th style={{ padding: '8px' }}>Account Code</th>
                             <th style={{ padding: '8px' }}>Amount</th>
                             <th style={{ padding: '8px' }}>Description</th>
+                            <th style={{ padding: '8px', width: '90px', textAlign: 'center' }}>Action</th>
                           </tr>
                           </thead>
                           <tbody>
                           {adjustments.map((adj, idx) => (
-                              <tr key={idx} style={{ borderBottom: '1px solid #dee2e6' }}>
+                              <tr key={adj.id || idx} style={{ borderBottom: '1px solid #dee2e6' }}>
                                 <td style={{ padding: '8px' }}>{adj.accountCode}</td>
                                 <td style={{ padding: '8px' }}>{adj.amount}</td>
                                 <td style={{ padding: '8px' }}>{adj.description}</td>
+                                <td style={{ padding: '8px', textAlign: 'center' }}>
+                                  <button
+                                      onClick={() => handleDeleteAdjustment(adj.id, idx)}
+                                      style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}
+                                  >
+                                    Delete
+                                  </button>
+                                </td>
                               </tr>
                           ))}
                           </tbody>
                         </table>
                     )}
 
-                    <button
-                        onClick={handleSaveAndDownloadCsv}
-                        disabled={adjustments.length === 0}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          background: adjustments.length === 0 ? '#6c757d' : '#007bff',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '15px',
-                          fontWeight: 'bold',
-                          cursor: adjustments.length === 0 ? 'not-allowed' : 'pointer',
-                        }}
-                    >
-                      Save Entries & Download CSV
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <button
+                          onClick={handleSaveAndDownloadCsv}
+                          disabled={adjustments.length === 0}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            background: adjustments.length === 0 ? '#6c757d' : '#007bff',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '15px',
+                            fontWeight: 'bold',
+                            cursor: adjustments.length === 0 ? 'not-allowed' : 'pointer',
+                          }}
+                      >
+                        Save Entries & Download Adjustments CSV
+                      </button>
+
+                      <button
+                          onClick={downloadCorrectedReportCsv}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            background: '#6c757d',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '15px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                          }}
+                      >
+                        Download Corrected Reconciliation File
+                      </button>
+                    </div>
                   </div>
               )}
             </div>

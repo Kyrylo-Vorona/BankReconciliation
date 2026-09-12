@@ -8,7 +8,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact", policy =>
     {
-        policy.WithOrigins("http://localhost:5173") // адрес Vite
+        policy.WithOrigins("http://localhost:5173") 
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -19,7 +19,12 @@ builder.Services.AddDbContext<BankDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<ReconciliationService>();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
