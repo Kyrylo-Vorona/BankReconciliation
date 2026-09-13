@@ -1,6 +1,6 @@
 # Bank Reconciliation System
 
-At the end of the month, the Statement of Financial Position of the bank and the company often differ due to:
+At the end of the month, the Cash balance of the bank and the company often differ due to:
 * Deposit in transit
 * Outstanding Checks
 * Notes collected by bank
