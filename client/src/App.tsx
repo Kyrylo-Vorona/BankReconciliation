@@ -1,4 +1,6 @@
-import { useState, ChangeEvent, DragEvent, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import type { ChangeEvent } from 'react';
+import type { DragEvent } from 'react';
 import { Api } from './api/Api';
 import type { BankTransactionDto, LedgerTransactionDto } from './api/Api';
 
@@ -10,6 +12,15 @@ type HistoryItem = {
   totalBankBalance: number;
   totalLedgerBalance: number;
   difference: number;
+};
+
+type AdjustmentEntry = {
+    id?: string;
+    reconciliationResultId?: string;
+    date?: string;
+    accountCode?: string;
+    amount?: number;
+    description?: string;
 };
 
 const api = new Api({ baseUrl: 'http://localhost:5263' });
@@ -562,7 +573,7 @@ export default function App() {
                 ))}
                 </tbody>
               </table>
-              {/* Кнопка открытия формы в конце таблицы */}
+              
               <div style={{ marginTop: '20px', textAlign: 'center' }}>
                 <button
                     onClick={() => setShowAdjustmentsForm(!showAdjustmentsForm)}

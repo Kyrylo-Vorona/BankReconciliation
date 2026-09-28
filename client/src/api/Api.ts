@@ -82,6 +82,15 @@ export interface ReconciliationResult {
   matchedLedgerTransactions?: LedgerTransaction[] | null;
   unmatchedBankTransactions?: BankTransaction[] | null;
   unmatchedLedgerTransactions?: LedgerTransaction[] | null;
+
+  adjustments?: Array<{
+    id?: string;
+    reconciliationResultId?: string;
+    date?: string;
+    accountCode?: string;
+    amount?: number;
+    description?: string | null;
+  }> | null;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -389,7 +398,7 @@ export class Api<
      * @request GET:/api/Reconciliation/history/{id}
      */
     reconciliationHistoryDetail: (id: string, params: RequestParams = {}) =>
-      this.request<void, any>({
+      this.request<ReconciliationResult, any>({
         path: `/api/Reconciliation/history/${id}`,
         method: "GET",
         ...params,
