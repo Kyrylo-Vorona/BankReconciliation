@@ -1,0 +1,13 @@
+date;amount;description;referenceNumber
+2026-09-01;-150,00;"Supplier Payment";"REF-1001"
+2026-09-02;2450,50;"Client Deposit";"REF-1002"
+2026-09-03;-89,99;"Office Supplies";"REF-1003"
+2026-09-04;-1200,00;"Software License";"REF-1004"
+2026-09-05;-430,00;"Utility Bill";"REF-1005"
+2026-09-06;3100,00;"Consulting Fee";"REF-1006"
+2026-09-07;75,20;"Internet Refund";"REF-1007"
+2026-09-08;-500,00;"Marketing Expense";"REF-1008"
+2026-09-09;-1800,00;"Equipment Purchase";"REF-1009"
+2026-09-10;95,00;"Taxi Refund";"REF-1010"
+2026-09-11;-620,00;"Bank Fee";"REF-1011"
+2026-09-12;-350,00;"Unrecorded Audit Fee";"REF-1012"

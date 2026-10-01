@@ -1,0 +1,10 @@
+date,amount,description,accountCode
+02/10/2026,-1250.00,Office Rent Payment,ACC-201
+03/10/2026,4800.00,Acme Corp Invoice #102,ACC-102
+04/10/2026,-315.50,AWS Cloud Hosting,ACC-502
+06/10/2026,12500.00,GlobalTech Client Deposit,ACC-102
+07/10/2026,-45.00,Monthly Business Subscriptions,ACC-504
+08/10/2026,-450.00,Dell Technologies Hardware,ACC-301
+09/10/2026,3200.00,Consulting Services Q3,ACC-101
+12/10/2026,-210.00,Chevron Fuel Company,ACC-402
+13/10/2026,1500.00,Design Services Advance,ACC-103

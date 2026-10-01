@@ -1,0 +1,13 @@
+date;amount;description;accountCode
+2026-09-01;-150,00;"Supplier Payment";"ACC-101"
+2026-09-02;2450,50;"Client Deposit";"ACC-102"
+2026-09-03;-89,99;"Office Supplies";"ACC-103"
+2026-09-04;-1200,00;"Software License";"ACC-104"
+2026-09-05;-430,00;"Utility Bill";"ACC-105"
+2026-09-06;3100,00;"Consulting Fee";"ACC-106"
+2026-09-07;75,20;"Internet Refund";"ACC-107"
+2026-09-08;-500,00;"Marketing Expense";"ACC-108"
+2026-09-09;-1800,00;"Equipment Purchase";"ACC-109"
+2026-09-10;95,00;"Taxi Refund";"ACC-110"
+2026-09-11;-620,00;"Bank Fee";"ACC-111"
+2026-09-13;500,00;"Unrecorded Income";"ACC-113"
