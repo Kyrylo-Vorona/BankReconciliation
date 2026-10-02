@@ -626,12 +626,18 @@ export default function App() {
 
                     {adjustments.length > 0 && (
                         <table style={{ width: '100%', marginBottom: '15px', borderCollapse: 'collapse', background: '#fff' }}>
+                          <colgroup>
+                            <col style={{ width: '25%' }} />
+                            <col style={{ width: '20%' }} />
+                            <col style={{ width: '40%' }} />
+                            <col style={{ width: '15%' }} />
+                          </colgroup>
                           <thead>
                           <tr style={{ background: '#e9ecef', textAlign: 'left' }}>
-                            <th style={{ padding: '8px' }}>Account Code</th>
-                            <th style={{ padding: '8px' }}>Amount</th>
-                            <th style={{ padding: '8px' }}>Description</th>
-                            <th style={{ padding: '8px', width: '90px', textAlign: 'center' }}>Action</th>
+                            <th style={{ padding: '8px 42px' }}>Account Code</th>
+                            <th style={{ padding: '8px 52px' }}>Amount</th>
+                            <th style={{ padding: '8px 112px' }}>Description</th>
+                            <th style={{ padding: '8px 12px', width: '90px', textAlign: 'center' }}>Action</th>
                           </tr>
                           </thead>
                           <tbody>
