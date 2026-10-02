@@ -45,8 +45,7 @@ export default function App() {
   const fetchHistory = async () => {
     try {
       const data = await api.api.reconciliationHistoryList({ format: 'json' } as any);
-
-      console.log('History fetched successfully:', data);
+      
       setHistoryList(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch history:', error);
