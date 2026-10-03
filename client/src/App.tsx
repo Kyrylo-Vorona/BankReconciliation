@@ -23,7 +23,7 @@ type AdjustmentEntry = {
     description?: string;
 };
 
-const api = new Api({ baseUrl: 'http://localhost:5263' });
+const api = new Api({ baseUrl: '' });
 
 export default function App() {
   const [bankFile, setBankFile] = useState<File | null>(null);
