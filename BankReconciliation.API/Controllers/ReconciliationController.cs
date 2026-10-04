@@ -124,11 +124,4 @@ public class ReconciliationController : ControllerBase
 
         return Ok(result);
     }
-    
-    [HttpGet("bank-transactions")]
-    public async Task<IActionResult> GetBankTransactions()
-    {
-        var transactions = await _dbContext.BankTransactions.ToListAsync();
-        return Ok(transactions);
-    }
 }
